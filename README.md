@@ -1,5 +1,7 @@
 # OpenBeken OTA Updater for Home Assistant
 
+> **Work in progress:** This integration is under active development and may contain bugs or incomplete features.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/SnowyCrunchybar/ha-openbeken-ota.svg)](https://github.com/SnowyCrunchybar/ha-openbeken-ota/releases)
 
