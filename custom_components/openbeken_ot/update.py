@@ -359,7 +359,27 @@ class OpenBekenUpdateEntity(
                 self.hass, cmnd_topic, local_ota_url, qos=1, retain=False
             )
 
-        # Wait for device to download .rbl from HA, flash, reboot, and reconnect
-        await asyncio.sleep(35)
-        await self.async_update()
+        # Wait for device to download .rbl, flash, and start rebooting
+        await asyncio.sleep(20)
+
+        # Poll the device up to 6 times (every 5s) until it comes back online with the new version
+        target_version = self.latest_version
+        for attempt in range(6):
+            await self.async_update()
+            if target_version and self._installed_version == target_version:
+                _LOGGER.info(
+                    "%s successfully updated to version %s",
+                    self.device_name,
+                    self._installed_version,
+                )
+                break
+            _LOGGER.debug(
+                "Waiting for %s to finish rebooting (attempt %d/6, current version: %s)...",
+                self.device_name,
+                attempt + 1,
+                self._installed_version,
+            )
+            await asyncio.sleep(5)
+
         self.async_write_ha_state()
+        self.coordinator.async_update_listeners()
