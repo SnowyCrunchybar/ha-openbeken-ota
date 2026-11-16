@@ -1,7 +1,7 @@
 # OpenBeken OTA Updater for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/release/SnowyCrunhybar/ha-openbeken-ota.svg)](https://github.com/SnowyCrunhybar/ha-openbeken-ota/releases)
+[![GitHub Release](https://img.shields.io/github/release/SnowyCrunchybar/ha-openbeken-ota.svg)](https://github.com/SnowyCrunchybar/ha-openbeken-ota/releases)
 
 A local-first Home Assistant custom integration for discovering, backing up, and performing Over-The-Air (OTA) firmware updates on **OpenBeken** (`BK7231T`, `BK7231N`, `BK7238`, `BL602`, `W800`, `W600`) devices.
 
@@ -15,8 +15,10 @@ A local-first Home Assistant custom integration for discovering, backing up, and
 
 ## Installation via HACS
 
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=SnowyCrunchybar&repository=ha-openbeken-ota&category=integration)
+
 1. Open **HACS** in Home Assistant.
 2. Click the three dots in the top-right corner and select **Custom repositories**.
-3. Add `https://github.com/SnowyCrunhybar/ha-openbeken-ota` as category **Integration**.
+3. Add `https://github.com/SnowyCrunchybar/ha-openbeken-ota` as category **Integration**.
 4. Find **OpenBeken OTA Updater** in HACS and click **Download**.
 5. Restart Home Assistant.
