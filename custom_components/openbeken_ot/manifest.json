@@ -1,7 +1,7 @@
 {
   "domain": "openbeken_ota",
   "name": "OpenBeken OTA Updater",
-  "codeowners": ["@eetumsln"],
+  "codeowners": ["@/SnowyCrunchybar"],
   "config_flow": true,
   "dependencies": ["mqtt"],
   "documentation": "https://github.com/openshwprojects/OpenBK7231T_App",
