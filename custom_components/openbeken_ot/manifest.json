@@ -1,13 +1,13 @@
 {
   "domain": "openbeken_ota",
   "name": "OpenBeken OTA Updater",
-  "codeowners": ["@eetumsln"],
+  "codeowners": ["@SnowyCrunchybar"],
   "config_flow": true,
   "dependencies": ["mqtt"],
   "documentation": "https://github.com/openshwprojects/OpenBK7231T_App",
   "issue_tracker": "https://github.com/SnowyCrunchybar/ha-openbeken-ota/issues",
   "iot_class": "local_polling",
-  "version": "1.0.0",
+  "version": "1.0.1b",
   "icon_url": "/local/openbeken_ota/icon.png",
   "logo_url": "/local/openbeken_ota/logo.png",
   "dark_logo_url": "/local/openbeken_ota/dark_logo.png"
