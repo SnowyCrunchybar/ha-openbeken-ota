@@ -5,6 +5,7 @@
   "config_flow": true,
   "dependencies": ["mqtt"],
   "documentation": "https://github.com/openshwprojects/OpenBK7231T_App",
+  "issue_tracker": "https://github.com/SnowyCrunchybar/ha-openbeken-ota/issues",
   "iot_class": "local_polling",
   "version": "1.0.0",
   "icon_url": "/local/openbeken_ota/icon.png",
