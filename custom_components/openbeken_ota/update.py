@@ -14,12 +14,17 @@ from homeassistant.components.update import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CHIPSET_ASSET_PATTERNS, DOMAIN
+from .const import (
+    CHIPSET_ASSET_PATTERNS,
+    CONF_INCLUDE_BATTERY_DEVICES,
+    DEFAULT_INCLUDE_BATTERY_DEVICES,
+    DOMAIN,
+)
 from .coordinator import OpenBekenReleaseCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +85,19 @@ def _detect_chipset_from_device(device: dr.DeviceEntry) -> str | None:
     return None
 
 
+def _is_battery_powered_device(
+    ent_reg: er.EntityRegistry, device: dr.DeviceEntry
+) -> bool:
+    """Return True if the device has a battery sensor entity registered."""
+    return any(
+        entity_entry.device_class == "battery"
+        or entity_entry.original_device_class == "battery"
+        for entity_entry in er.async_entries_for_device(
+            ent_reg, device.id, include_disabled_entities=True
+        )
+    )
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -88,10 +106,20 @@ async def async_setup_entry(
     """Set up OpenBeken update entities and listen for new or updated devices dynamically."""
     coordinator: OpenBekenReleaseCoordinator = hass.data[DOMAIN][entry.entry_id]
     dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+    include_battery = entry.options.get(
+        CONF_INCLUDE_BATTERY_DEVICES, DEFAULT_INCLUDE_BATTERY_DEVICES
+    )
 
     initial_entities: list[OpenBekenUpdateEntity] = []
     for device in dev_reg.devices:
         if device.id in coordinator.entities:
+            continue
+        if not include_battery and _is_battery_powered_device(ent_reg, device):
+            _LOGGER.debug(
+                "Skipping battery-powered OpenBeken device %s (disabled in options)",
+                device.name,
+            )
             continue
         ip_address = _extract_openbeken_ip(device)
         if ip_address:
@@ -119,6 +147,13 @@ async def async_setup_entry(
         device_id = event.data["device_id"]
         device = dev_reg.async_get(device_id)
         if not device:
+            return
+
+        if not include_battery and _is_battery_powered_device(ent_reg, device):
+            _LOGGER.debug(
+                "Skipping battery-powered OpenBeken device %s (disabled in options)",
+                device.name,
+            )
             return
 
         new_ip = _extract_openbeken_ip(device)
