@@ -3,11 +3,24 @@
     "step": {
       "user": {
         "title": "OpenBeken OTA -päivittäjä",
-        "description": "Ota käyttöön MQTT:n kautta rekisteröityjen OpenBeken-laitteiden automaattinen tunnistus ja paikalliset HTTP-laiteohjelmistopäivitykset."
+        "description": "Ota käyttöön MQTT:n kautta rekisteröityjen OpenBeken-laitteiden automaattinen tunnistus ja paikalliset HTTP-laiteohjelmistopäivitykset.",
+        "data": {
+          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet"
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Integraatio on jo määritetty. Vain yksi OpenBeken OTA -instanssi on sallittu."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OpenBeken OTA -asetukset",
+        "data": {
+          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet"
+        }
+      }
     }
   }
 }

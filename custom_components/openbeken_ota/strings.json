@@ -3,11 +3,24 @@
     "step": {
       "user": {
         "title": "OpenBeken OTA Updater",
-        "description": "Set up automatic discovery and local HTTP firmware updates for your OpenBeken devices registered via MQTT."
+        "description": "Set up automatic discovery and local HTTP firmware updates for your OpenBeken devices registered via MQTT.",
+        "data": {
+          "include_battery_devices": "Include battery-powered OpenBeken devices"
+        }
       }
     },
     "abort": {
       "single_instance_allowed": "Already configured. Only a single instance of OpenBeken OTA Updater is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OpenBeken OTA Settings",
+        "data": {
+          "include_battery_devices": "Include battery-powered OpenBeken devices"
+        }
+      }
     }
   }
 }

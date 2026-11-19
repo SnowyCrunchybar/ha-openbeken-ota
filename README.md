@@ -14,6 +14,13 @@ A local-first Home Assistant custom integration for discovering, backing up, and
 - **Automatic Configuration Backups:** Backs up `config.json` and `autoexec.bat` (if present) to `/config/openbeken_backups/<device>/<timestamp>/` before flashing or on demand.
 - **Native Home Assistant `update` Entities:** Integrates directly into Home Assistant's native **Settings → Updates** view with release notes and version tracking.
 - **Per-Device & Global Controls:** Includes dedicated buttons for checking updates, backing up configurations, restarting devices, and running sequential batch updates across all outdated devices.
+- **Optional Battery Device Discovery:** Battery-powered OpenBeken devices are excluded by default and can be included during setup or later from the integration's **Configure** options.
+
+## Battery-powered devices
+
+By default, the integration hides OpenBeken devices that have a registered Home Assistant entity with the `battery` device class. This avoids offering OTA updates for devices that are normally battery-powered.
+
+To include these devices, enable **Include battery-powered OpenBeken devices** during setup, or open the integration's **Configure** dialog and enable the same option. Changing the option reloads the integration automatically.
 
 ## Installation via HACS
 
