@@ -5,7 +5,9 @@
         "title": "OpenBeken OTA -päivittäjä",
         "description": "Ota käyttöön MQTT:n kautta rekisteröityjen OpenBeken-laitteiden automaattinen tunnistus ja paikalliset HTTP-laiteohjelmistopäivitykset.",
         "data": {
-          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet"
+          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet",
+          "retry_failed_updates": "Yritä epäonnistuneet päivitykset uudelleen automaattisesti",
+          "retry_delay_minutes": "Uudelleenyritysviive (minuuttia)"
         }
       }
     },
@@ -18,7 +20,9 @@
       "init": {
         "title": "OpenBeken OTA -asetukset",
         "data": {
-          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet"
+          "include_battery_devices": "Näytä paristokäyttöiset OpenBeken-laitteet",
+          "retry_failed_updates": "Yritä epäonnistuneet päivitykset uudelleen automaattisesti",
+          "retry_delay_minutes": "Uudelleenyritysviive (minuuttia)"
         }
       }
     }

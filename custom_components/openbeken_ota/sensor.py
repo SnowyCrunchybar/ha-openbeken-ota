@@ -20,6 +20,7 @@ async def async_setup_entry(
         [
             OpenBekenUpToDateSensor(coordinator, entry.entry_id),
             OpenBekenOutdatedSensor(coordinator, entry.entry_id),
+            OpenBekenRetrySensor(coordinator, entry.entry_id),
         ]
     )
 
@@ -83,4 +84,35 @@ class OpenBekenOutdatedSensor(
         return {
             "devices": [d["name"] for d in devices],
             "details": devices,
+        }
+
+
+class OpenBekenRetrySensor(
+    CoordinatorEntity[OpenBekenReleaseCoordinator], SensorEntity
+):
+    """Sensor showing count and details of devices with scheduled OTA retries."""
+
+    _attr_name = "OpenBeken Uudelleenyritykset"
+    _attr_icon = "mdi:autorenew"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self, coordinator: OpenBekenReleaseCoordinator, entry_id: str
+    ) -> None:
+        """Initialize retry sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_retry_count"
+
+    @property
+    def native_value(self) -> int:
+        """Return count of devices with an active retry scheduled."""
+        return len(self.coordinator.get_retry_summary())
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return details of scheduled OTA retries."""
+        retries = self.coordinator.get_retry_summary()
+        return {
+            "devices": [r["name"] for r in retries],
+            "retries": retries,
         }

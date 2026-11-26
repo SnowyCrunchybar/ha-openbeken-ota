@@ -7,8 +7,17 @@ GITHUB_API_URL = (
 SCAN_INTERVAL_HOURS = 6
 WWW_SUBDIR = "openbeken_ota"
 BACKUP_DIR = "openbeken_backups"
+
 CONF_INCLUDE_BATTERY_DEVICES = "include_battery_devices"
 DEFAULT_INCLUDE_BATTERY_DEVICES = False
+
+CONF_RETRY_FAILED_UPDATES = "retry_failed_updates"
+DEFAULT_RETRY_FAILED_UPDATES = True
+
+CONF_RETRY_DELAY_MINUTES = "retry_delay_minutes"
+DEFAULT_RETRY_DELAY_MINUTES = 3
+
+MAX_OTA_RETRIES = 3
 
 # Maps normalized chipset names to (filename_prefix, filename_suffix) for OTA .rbl files
 CHIPSET_ASSET_PATTERNS: dict[str, tuple[str, str]] = {
