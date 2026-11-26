@@ -13,9 +13,39 @@ from homeassistant.core import callback
 
 from .const import (
     CONF_INCLUDE_BATTERY_DEVICES,
+    CONF_RETRY_DELAY_MINUTES,
+    CONF_RETRY_FAILED_UPDATES,
     DEFAULT_INCLUDE_BATTERY_DEVICES,
+    DEFAULT_RETRY_DELAY_MINUTES,
+    DEFAULT_RETRY_FAILED_UPDATES,
     DOMAIN,
 )
+
+
+def _build_options_schema(current: dict[str, Any]) -> vol.Schema:
+    """Build schema for setup and options flows."""
+    return vol.Schema(
+        {
+            vol.Optional(
+                CONF_INCLUDE_BATTERY_DEVICES,
+                default=current.get(
+                    CONF_INCLUDE_BATTERY_DEVICES, DEFAULT_INCLUDE_BATTERY_DEVICES
+                ),
+            ): bool,
+            vol.Optional(
+                CONF_RETRY_FAILED_UPDATES,
+                default=current.get(
+                    CONF_RETRY_FAILED_UPDATES, DEFAULT_RETRY_FAILED_UPDATES
+                ),
+            ): bool,
+            vol.Optional(
+                CONF_RETRY_DELAY_MINUTES,
+                default=current.get(
+                    CONF_RETRY_DELAY_MINUTES, DEFAULT_RETRY_DELAY_MINUTES
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+        }
+    )
 
 
 class OpenBekenOTAConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -43,20 +73,19 @@ class OpenBekenOTAConfigFlow(ConfigFlow, domain=DOMAIN):
                 options={
                     CONF_INCLUDE_BATTERY_DEVICES: user_input.get(
                         CONF_INCLUDE_BATTERY_DEVICES, DEFAULT_INCLUDE_BATTERY_DEVICES
-                    )
+                    ),
+                    CONF_RETRY_FAILED_UPDATES: user_input.get(
+                        CONF_RETRY_FAILED_UPDATES, DEFAULT_RETRY_FAILED_UPDATES
+                    ),
+                    CONF_RETRY_DELAY_MINUTES: user_input.get(
+                        CONF_RETRY_DELAY_MINUTES, DEFAULT_RETRY_DELAY_MINUTES
+                    ),
                 },
             )
 
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_INCLUDE_BATTERY_DEVICES,
-                    default=DEFAULT_INCLUDE_BATTERY_DEVICES,
-                ): bool,
-            }
+        return self.async_show_form(
+            step_id="user", data_schema=_build_options_schema({})
         )
-
-        return self.async_show_form(step_id="user", data_schema=schema)
 
 
 class OpenBekenOTAOptionsFlowHandler(OptionsFlow):
@@ -69,16 +98,7 @@ class OpenBekenOTAOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current_include = self.config_entry.options.get(
-            CONF_INCLUDE_BATTERY_DEVICES, DEFAULT_INCLUDE_BATTERY_DEVICES
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_build_options_schema(dict(self.config_entry.options)),
         )
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_INCLUDE_BATTERY_DEVICES,
-                    default=current_include,
-                ): bool,
-            }
-        )
-
-        return self.async_show_form(step_id="init", data_schema=schema)

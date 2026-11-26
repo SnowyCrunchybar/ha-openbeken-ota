@@ -1,6 +1,7 @@
 """Update platform for OpenBeken devices discovered via HA Device Registry."""
 import asyncio
 import logging
+from typing import Any
 from urllib.parse import quote, urlparse, urlunparse
 
 import aiohttp
@@ -28,6 +29,9 @@ from .const import (
 from .coordinator import OpenBekenReleaseCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Limit concurrent OTA flashes so local Wi-Fi/APs are not overwhelmed during "Update all"
+OTA_CONCURRENCY_SEMAPHORE = asyncio.Semaphore(3)
 
 
 def _extract_openbeken_ip(device: dr.DeviceEntry) -> str | None:
@@ -66,7 +70,6 @@ def _extract_openbeken_ip(device: dr.DeviceEntry) -> str | None:
 
 def _extract_mqtt_topic_name(device: dr.DeviceEntry) -> str | None:
     """Extract case-sensitive OpenBeken Client Topic (Short name) for MQTT commands."""
-    # OpenBeken's MQTT discovery sets device.name to its exact case-sensitive Short name / Client Topic
     if device.name:
         return device.name.strip()
 
@@ -219,6 +222,7 @@ class OpenBekenUpdateEntity(
         self._installed_version: str | None = (
             str(device.sw_version).lstrip("v") if device.sw_version else None
         )
+        self._attr_in_progress = False
 
         device_label = device.name_by_user or device.name or f"OpenBeken ({ip_address})"
         self._attr_unique_id = f"{device.id}_ota_update"
@@ -259,6 +263,12 @@ class OpenBekenUpdateEntity(
     async def async_refresh_and_notify(self) -> None:
         """Poll the updated IP address and notify summary sensors/buttons."""
         await self.async_update()
+        if (
+            self._installed_version
+            and self.latest_version
+            and self._installed_version == self.latest_version
+        ):
+            self.coordinator.cancel_retry(self._device.id, notify=False)
         self.async_write_ha_state()
         self.coordinator.async_update_listeners()
 
@@ -279,6 +289,12 @@ class OpenBekenUpdateEntity(
                         self._installed_version = str(info["version"]).lstrip("v")
                     if "chipset" in info:
                         self._chipset = str(info["chipset"]).upper()
+                    if (
+                        self._installed_version
+                        and self.latest_version
+                        and self._installed_version == self.latest_version
+                    ):
+                        self.coordinator.cancel_retry(self._device.id, notify=False)
         except Exception as err:
             _LOGGER.warning(
                 "Could not poll %s (%s) via HTTP /api/info: %s (using registry fallback: version=%s, chipset=%s)",
@@ -327,8 +343,27 @@ class OpenBekenUpdateEntity(
             return urlunparse(parsed._replace(scheme="http", netloc=new_netloc))
         return local_ota_url
 
+    async def async_retry_install(self) -> None:
+        """Background entry point invoked by the coordinator retry timer."""
+        target_version = self.latest_version
+        if target_version and self._installed_version == target_version:
+            self.coordinator.cancel_retry(self._device.id)
+            return
+
+        _LOGGER.info("Executing scheduled OTA retry for %s", self.device_name)
+        try:
+            await self.async_install(version=target_version, backup=False, _is_retry=True)
+        except Exception as err:
+            _LOGGER.warning(
+                "Scheduled OTA retry failed for %s: %s", self.device_name, err
+            )
+
     async def async_install(
-        self, version: str | None = None, backup: bool = False, **kwargs
+        self,
+        version: str | None = None,
+        backup: bool = False,
+        _is_retry: bool = False,
+        **kwargs: Any,
     ) -> None:
         """Optionally back up config, cache .rbl binary locally, and trigger OTA via HTTP (with MQTT fallback)."""
         if not self._chipset:
@@ -336,85 +371,123 @@ class OpenBekenUpdateEntity(
                 f"Cannot update {self.device_name}: unknown chipset."
             )
 
-        if backup:
-            await self.coordinator.async_backup_device(
-                self.device_name, self._ip_address
-            )
+        # Manual install resets previous retry counter
+        if not _is_retry:
+            self.coordinator.cancel_retry(self._device.id, notify=False)
 
-        raw_ota_url = await self.coordinator.async_get_local_ota_url(self._chipset)
-        local_ota_url = self._match_subnet_ota_url(raw_ota_url)
+        self._attr_in_progress = True
+        self.async_write_ha_state()
 
-        session = async_get_clientsession(self.hass)
-        encoded_url = quote(local_ota_url, safe="")
-        ota_cmd_url = f"http://{self._ip_address}/cm?cmnd=ota_http%20{encoded_url}"
+        failure_reason: str | None = None
+        updated_ok = False
 
-        _LOGGER.info(
-            "Triggering local OTA update for %s (%s) via HTTP -> %s",
-            self.device_name,
-            self._ip_address,
-            local_ota_url,
-        )
-
-        http_ok = False
         try:
-            async with session.get(
-                ota_cmd_url, timeout=aiohttp.ClientTimeout(total=15)
-            ) as resp:
-                body = await resp.text()
+            async with OTA_CONCURRENCY_SEMAPHORE:
+                if backup:
+                    await self.coordinator.async_backup_device(
+                        self.device_name, self._ip_address
+                    )
+
+                raw_ota_url = await self.coordinator.async_get_local_ota_url(
+                    self._chipset
+                )
+                local_ota_url = self._match_subnet_ota_url(raw_ota_url)
+
+                session = async_get_clientsession(self.hass)
+                encoded_url = quote(local_ota_url, safe="")
+                ota_cmd_url = (
+                    f"http://{self._ip_address}/cm?cmnd=ota_http%20{encoded_url}"
+                )
+
                 _LOGGER.info(
-                    "HTTP ota_http response from %s (%s): HTTP %s - %s",
+                    "Triggering local OTA update for %s (%s) via HTTP -> %s",
                     self.device_name,
                     self._ip_address,
-                    resp.status,
-                    body.strip(),
+                    local_ota_url,
                 )
-                if resp.status == 200:
-                    http_ok = True
+
+                http_ok = False
+                try:
+                    async with session.get(
+                        ota_cmd_url, timeout=aiohttp.ClientTimeout(total=15)
+                    ) as resp:
+                        body = await resp.text()
+                        _LOGGER.info(
+                            "HTTP ota_http response from %s (%s): HTTP %s - %s",
+                            self.device_name,
+                            self._ip_address,
+                            resp.status,
+                            body.strip(),
+                        )
+                        if resp.status == 200:
+                            http_ok = True
+                except Exception as err:
+                    _LOGGER.warning(
+                        "HTTP ota_http failed for %s (%s): %s; falling back to MQTT",
+                        self.device_name,
+                        self._ip_address,
+                        err,
+                    )
+
+                if not http_ok:
+                    if not self._mqtt_topic_name:
+                        failure_reason = (
+                            f"HTTP OTA failed for {self.device_name} and no MQTT topic is available"
+                        )
+                        raise HomeAssistantError(failure_reason)
+                    cmnd_topic = f"cmnd/{self._mqtt_topic_name}/ota_http"
+                    _LOGGER.info(
+                        "Fallback: Triggering local OTA update for %s via MQTT topic '%s' -> %s",
+                        self.device_name,
+                        cmnd_topic,
+                        local_ota_url,
+                    )
+                    await mqtt.async_publish(
+                        self.hass, cmnd_topic, local_ota_url, qos=1, retain=False
+                    )
+
+                # Wait for device to download .rbl, flash, and start rebooting
+                await asyncio.sleep(20)
+
+                # Poll the device up to 6 times (every 5s) until it comes back online with the new version
+                target_version = version or self.latest_version
+                for attempt in range(6):
+                    await self.async_update()
+                    if target_version and self._installed_version == target_version:
+                        _LOGGER.info(
+                            "%s successfully updated to version %s",
+                            self.device_name,
+                            self._installed_version,
+                        )
+                        updated_ok = True
+                        break
+                    _LOGGER.debug(
+                        "Waiting for %s to finish rebooting (attempt %d/6, current version: %s)...",
+                        self.device_name,
+                        attempt + 1,
+                        self._installed_version,
+                    )
+                    await asyncio.sleep(5)
+
+                if not updated_ok:
+                    failure_reason = (
+                        f"Version remained {self._installed_version} (expected {target_version})"
+                    )
         except Exception as err:
-            _LOGGER.warning(
-                "HTTP ota_http failed for %s (%s): %s; falling back to MQTT",
-                self.device_name,
-                self._ip_address,
-                err,
-            )
-
-        if not http_ok:
-            if not self._mqtt_topic_name:
-                raise HomeAssistantError(
-                    f"HTTP OTA failed for {self.device_name} and no MQTT topic is available"
+            if not failure_reason:
+                failure_reason = str(err)
+            if self.coordinator.retry_enabled:
+                self.coordinator.schedule_ota_retry(
+                    self._device.id, self, reason=failure_reason
                 )
-            cmnd_topic = f"cmnd/{self._mqtt_topic_name}/ota_http"
-            _LOGGER.info(
-                "Fallback: Triggering local OTA update for %s via MQTT topic '%s' -> %s",
-                self.device_name,
-                cmnd_topic,
-                local_ota_url,
-            )
-            await mqtt.async_publish(
-                self.hass, cmnd_topic, local_ota_url, qos=1, retain=False
-            )
-
-        # Wait for device to download .rbl, flash, and start rebooting
-        await asyncio.sleep(20)
-
-        # Poll the device up to 6 times (every 5s) until it comes back online with the new version
-        target_version = self.latest_version
-        for attempt in range(6):
-            await self.async_update()
-            if target_version and self._installed_version == target_version:
-                _LOGGER.info(
-                    "%s successfully updated to version %s",
-                    self.device_name,
-                    self._installed_version,
+            raise
+        finally:
+            self._attr_in_progress = False
+            if updated_ok:
+                self.coordinator.cancel_retry(self._device.id, notify=False)
+            elif failure_reason and self.coordinator.retry_enabled:
+                self.coordinator.schedule_ota_retry(
+                    self._device.id, self, reason=failure_reason
                 )
-                break
-            _LOGGER.debug(
-                "Waiting for %s to finish rebooting (attempt %d/6, current version: %s)...",
-                self.device_name,
-                attempt + 1,
-                self._installed_version,
-            )
-            await asyncio.sleep(5)
-
-        self.async_write_ha_state()
-        self.coordinator.async_update_listeners()
+            self.async_write_ha_state()
+            self.coordinator.async_update_listeners()

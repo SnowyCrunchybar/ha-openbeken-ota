@@ -5,7 +5,9 @@
         "title": "OpenBeken OTA Updater",
         "description": "Set up automatic discovery and local HTTP firmware updates for your OpenBeken devices registered via MQTT.",
         "data": {
-          "include_battery_devices": "Include battery-powered OpenBeken devices"
+          "include_battery_devices": "Include battery-powered OpenBeken devices",
+          "retry_failed_updates": "Automatically retry failed firmware updates",
+          "retry_delay_minutes": "Retry delay (minutes)"
         }
       }
     },
@@ -18,7 +20,9 @@
       "init": {
         "title": "OpenBeken OTA Settings",
         "data": {
-          "include_battery_devices": "Include battery-powered OpenBeken devices"
+          "include_battery_devices": "Include battery-powered OpenBeken devices",
+          "retry_failed_updates": "Automatically retry failed firmware updates",
+          "retry_delay_minutes": "Retry delay (minutes)"
         }
       }
     }

@@ -288,7 +288,7 @@ class OpenBekenBackupAllButton(
 class OpenBekenUpdateAllButton(
     CoordinatorEntity[OpenBekenReleaseCoordinator], ButtonEntity
 ):
-    """Button to sequentially update all outdated OpenBeken devices."""
+    """Button to update all outdated OpenBeken devices."""
 
     def __init__(
         self,
@@ -315,7 +315,7 @@ class OpenBekenUpdateAllButton(
         return len(self.coordinator.get_device_summary()["outdated"]) > 0
 
     async def async_press(self) -> None:
-        """Update all outdated devices one by one."""
+        """Update all outdated devices."""
         outdated_entities = [
             entity
             for entity in self.coordinator.entities.values()
@@ -325,7 +325,7 @@ class OpenBekenUpdateAllButton(
         ]
 
         _LOGGER.info(
-            "Starting sequential manual update for %d OpenBeken devices (backup=%s)",
+            "Starting batch manual update for %d OpenBeken devices (backup=%s)",
             len(outdated_entities),
             self._with_backup,
         )
